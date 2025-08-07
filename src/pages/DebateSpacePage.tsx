@@ -13,7 +13,7 @@ interface Debate {
   proCount: number;
   conCount: number;
   timestamp: string;
-  comments: any[]; 
+  comments: never[]; 
 }
 
 const DebateSpacePage: React.FC = () => {
@@ -154,7 +154,7 @@ const DebateSpacePage: React.FC = () => {
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key as unknown)}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? 'text-black border-black'
