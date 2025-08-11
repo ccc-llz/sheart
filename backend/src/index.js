@@ -25,15 +25,30 @@ mongoose.connect(process.env.MONGODB_URI)
     .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/home', homeRoutes);
-app.use('/api/confession', confessionRoutes);
-app.use('/api/debate', debateRoutes);
-app.use('/api/daily', dailyRoutes);
-app.use('/api/news', newsRoutes);
-app.use('/api/profile', profileRoutes);
+// app.use('/api/auth', authRoutes);
+// app.use('/api/home', homeRoutes);
+// app.use('/api/confession', confessionRoutes);
+// app.use('/api/debate', debateRoutes);
+// app.use('/api/daily', dailyRoutes);
+// app.use('/api/news', newsRoutes);
+// app.use('/api/profile', profileRoutes);
+//
+// app.get('/api', (req, res) => {
+//     res.json({ message: 'Sheart Backend API' });
+// });
 
-app.get('/api', (req, res) => {
+// Routes
+app.use('/auth', authRoutes);
+app.use('/home', homeRoutes);
+app.use('/confession', confessionRoutes);
+app.use('/debate', debateRoutes);
+app.use('/daily', dailyRoutes);
+app.use('/news', newsRoutes);
+app.use('/profile', profileRoutes);
+
+// You can keep this, but it's not a common API endpoint.
+// A more standard practice might be to have a root endpoint that returns API status.
+app.get('/', (req, res) => {
     res.json({ message: 'Sheart Backend API' });
 });
 

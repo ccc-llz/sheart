@@ -15,6 +15,7 @@ import NewsPage from './pages/NewsPage';
 import ProfilePage from './pages/ProfilePage';
 import Navigation from './components/Navigation';
 import WelcomeModal from './components/WelcomeModal';
+import FriendsPage from './pages/FriendsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -85,6 +86,12 @@ function AppContent() {
           <ProtectedRoute>
             <Navigation />
             <ProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/friends" element={
+          <ProtectedRoute>
+            <Navigation />
+            <FriendsPage />
           </ProtectedRoute>
         } />
         <Route path="/" element={<Navigate to={isAuthenticated ? "/home" : "/cover"} replace />} />

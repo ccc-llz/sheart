@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Camera, Edit, Users, Heart, Settings, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const ProfilePage: React.FC = () => {
   const { user, updateUser, logout } = useAuth();
@@ -10,6 +11,8 @@ const ProfilePage: React.FC = () => {
     bio: user?.bio || '',
     tags: user?.tags || ['', '', '']
   });
+
+  const navigate = useNavigate();
 
   const handleSave = () => {
     updateUser({
@@ -25,14 +28,21 @@ const ProfilePage: React.FC = () => {
     alert('头像上传功能（实际应用中会打开文件选择器）');
   };
 
-  const menuItems = [
-    { icon: Users, label: '我的好友', count: user?.friends || 0 },
-    { icon: Users, label: '关注', count: user?.following || 0 },
-    { icon: Users, label: '粉丝', count: user?.followers || 0 },
-    { icon: Heart, label: '我的点赞' },
-    { icon: Settings, label: '设置' }
-  ];
+  // const menuItems = [
+  //   { icon: Users, label: '我的好友', count: user?.friends || 0 },
+  //   { icon: Users, label: '关注', count: user?.following || 0 },
+  //   { icon: Users, label: '粉丝', count: user?.followers || 0 },
+  //   { icon: Heart, label: '我的点赞' },
+  //   { icon: Settings, label: '设置' }
+  // ];
 
+  const menuItems = [
+    { icon: Users, label: '我的好友', count: user?.friends || 0, onClick: () => navigate('/friends') },
+    { icon: Users, label: '关注', count: user?.following || 0, onClick: () => alert('关注页面功能（实际应用中会跳转到相应页面）') },
+    { icon: Users, label: '粉丝', count: user?.followers || 0, onClick: () => alert('粉丝页面功能（实际应用中会跳转到相应页面）') },
+    { icon: Heart, label: '我的点赞', onClick: () => alert('我的点赞页面功能（实际应用中会跳转到相应页面）') },
+    { icon: Settings, label: '设置', onClick: () => alert('设置页面功能（实际应用中会跳转到相应页面）') }
+  ];
   if (!user) return null;
 
   return (
@@ -168,7 +178,8 @@ const ProfilePage: React.FC = () => {
               <button
                 key={index}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
-                onClick={() => alert(`${item.label}功能（实际应用中会跳转到相应页面）`)}
+                // onClick={() => alert(`${item.label}功能（实际应用中会跳转到相应页面）`)}
+                onClick={item.onClick}
               >
                 <div className="flex items-center space-x-3">
                   <Icon className="w-5 h-5 text-gray-600" />
