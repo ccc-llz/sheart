@@ -7,9 +7,9 @@ import {
     voteDebate,
     likeDebate,
     commentOnDebate,
-} from '../controllers/debateController';
+} from '../controllers/debateController.js';
 
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 

@@ -1,4 +1,4 @@
-const { News } = require('../models');
+const { News } = require('../models/models.js');
 
 // 获取所有新闻
 exports.getAllNews = async (req, res) => {

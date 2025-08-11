@@ -2,13 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import authRoutes from './routes/auth.js';
-import homeRoutes from './routes/home.js';
-import confessionRoutes from './routes/confession.js';
-import debateRoutes from './routes/debate.js';
-import dailyRoutes from './routes/daily.js';
-import newsRoutes from './routes/news.js';
-import profileRoutes from './routes/profile.js';
+import authRoutes from './src/routes/authRoutes.js';
+import homeRoutes from './src/routes/home.js';
+import confessionRoutes from './src/routes/confession.js';
+import debateRoutes from './src/routes/debateRoutes.js';
+import dailyRoutes from './src/routes/daily.js';
+import newsRoutes from './src/routes/news.js';
+import profileRoutes from './src/routes/profile.js';
+
 
 dotenv.config();
 

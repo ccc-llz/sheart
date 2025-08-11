@@ -1,4 +1,4 @@
-const { Debate } = require('../models');
+const { Debate } = require('../models/models.js');
 
 // 获取所有辩题
 exports.getAllDebates = async (req, res) => {
