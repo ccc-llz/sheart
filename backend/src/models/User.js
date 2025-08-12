@@ -14,6 +14,9 @@ const UserSchema = new Schema({
     friends: { type: Number, default: 0 }, // 好友数
     following: { type: Number, default: 0 }, // 关注数
     followers: { type: Number, default: 0 }, // 粉丝数
+    followingList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    followersList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    friendsList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     token: { type: String } // 认证令牌
 });
 
@@ -35,6 +38,6 @@ UserSchema.pre('save', async function (next) {
 // 密码校验
 UserSchema.methods.comparePassword = async function (passw) {
     return await bcrypt.compare(passw, this.password);
-});
+};
 
 module.exports = mongoose.model('User', UserSchema);
