@@ -1,24 +1,29 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const Schema = mongoose.Schema;
+// models/User.js (ESM)
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-const UserSchema = new Schema({
-    idCard: { type: String, required: true, unique: true }, // 身份证号码
-    realName: { type: String, required: true }, // 真实姓名
-    nickname: { type: String, required: true, unique: true }, // 昵称
-    phone: { type: String, required: true, unique: true }, // 手机号
-    password: { type: String, required: true }, // 密码
-    bio: { type: String, default: '' }, // 简介
-    tags: { type: [String], default: [] }, // 标签
-    avatar: { type: String, default: '' }, // 头像
-    friends: { type: Number, default: 0 }, // 好友数
-    following: { type: Number, default: 0 }, // 关注数
-    followers: { type: Number, default: 0 }, // 粉丝数
-    followingList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    followersList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    friendsList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    token: { type: String } // 认证令牌
-});
+const { Schema } = mongoose;
+
+const UserSchema = new Schema(
+    {
+        idCard: { type: String, required: true, unique: true }, // 身份证号码
+        realName: { type: String, required: true }, // 真实姓名
+        nickname: { type: String, required: true, unique: true }, // 昵称
+        phone: { type: String, required: true, unique: true }, // 手机号
+        password: { type: String, required: true }, // 密码
+        bio: { type: String, default: '' }, // 简介
+        tags: { type: [String], default: [] }, // 标签
+        avatar: { type: String, default: '' }, // 头像
+        friends: { type: Number, default: 0 }, // 好友数
+        following: { type: Number, default: 0 }, // 关注数
+        followers: { type: Number, default: 0 }, // 粉丝数
+        followingList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+        followersList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+        friendsList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+        token: { type: String } // 认证令牌
+    },
+    { timestamps: true }
+);
 
 // 密码加密
 UserSchema.pre('save', async function (next) {
@@ -40,4 +45,5 @@ UserSchema.methods.comparePassword = async function (passw) {
     return await bcrypt.compare(passw, this.password);
 };
 
-module.exports = mongoose.model('User', UserSchema);
+export const User = mongoose.model('User', UserSchema);
+export default User;

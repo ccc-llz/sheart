@@ -1,7 +1,8 @@
-const { Debate } = require('../models/models.js');
+// controllers/debateController.js
+import { Debate } from '../models/models.js';
 
-// 获取所有辩题
-exports.getAllDebates = async (req, res) => {
+// 列表
+export const getDebateList = async (req, res) => {
     try {
         const debates = await Debate.find().sort({ createdAt: -1 });
         res.json(debates);
@@ -10,8 +11,8 @@ exports.getAllDebates = async (req, res) => {
     }
 };
 
-// 获取辩题详情
-exports.getDebateById = async (req, res) => {
+// 详情
+export const getDebateDetails = async (req, res) => {
     try {
         const debate = await Debate.findById(req.params.id);
         if (!debate) return res.status(404).json({ error: '辩题不存在' });
@@ -21,8 +22,8 @@ exports.getDebateById = async (req, res) => {
     }
 };
 
-// 发布辩题
-exports.createDebate = async (req, res) => {
+// 创建
+export const createDebate = async (req, res) => {
     try {
         const { topic, description, author, tags } = req.body;
         const debate = new Debate({ topic, description, author, tags });
@@ -34,9 +35,9 @@ exports.createDebate = async (req, res) => {
 };
 
 // 投票
-exports.voteDebate = async (req, res) => {
+export const voteDebate = async (req, res) => {
     const { id } = req.params;
-    const { side } = req.body; // side: 'pros' or 'cons'
+    const { side } = req.body; // 'pros' | 'cons'
     try {
         const debate = await Debate.findById(id);
         if (!debate) return res.status(404).json({ error: '辩题不存在' });
@@ -51,18 +52,43 @@ exports.voteDebate = async (req, res) => {
     }
 };
 
-// 添加评论
-exports.addComment = async (req, res) => {
+// 点赞
+export const likeDebate = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const debate = await Debate.findById(id);
+        if (!debate) return res.status(404).json({ error: '辩题不存在' });
+
+        debate.likes = (debate.likes || 0) + 1;
+        await debate.save();
+        res.json(debate);
+    } catch (err) {
+        res.status(500).json({ error: '点赞失败' });
+    }
+};
+
+// 评论
+export const commentOnDebate = async (req, res) => {
     const { id } = req.params;
     const { user, content } = req.body;
     try {
         const debate = await Debate.findById(id);
         if (!debate) return res.status(404).json({ error: '辩题不存在' });
 
-        debate.comments.push({ user, content });
+        debate.comments.push({ user, content, createdAt: new Date() });
         await debate.save();
         res.json(debate);
     } catch (err) {
         res.status(500).json({ error: '评论失败' });
     }
+};
+
+// 可选：补一个默认导出，避免外部使用默认导入时报错
+export default {
+    getDebateList,
+    getDebateDetails,
+    createDebate,
+    voteDebate,
+    likeDebate,
+    commentOnDebate,
 };

@@ -3,10 +3,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import authRoutes from './src/routes/authRoutes.js';
-import homeRoutes from './src/routes/home.js';
-import confessionRoutes from './src/routes/confession.js';
 import debateRoutes from './src/routes/debateRoutes.js';
-import dailyRoutes from './src/routes/daily.js';
 import newsRoutes from './src/routes/news.js';
 import userRoutes from './src/routes/user.js';
 import relationRoutes from './src/routes/relations.js';
@@ -27,10 +24,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/home', homeRoutes);
-app.use('/api/confession', confessionRoutes);
 app.use('/api/debate', debateRoutes);
-app.use('/api/daily', dailyRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/relations', relationRoutes);
