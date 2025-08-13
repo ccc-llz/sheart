@@ -3,6 +3,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
+
 import avatarRoutes from './src/routes/avatar.js';
 import authRoutes from './src/routes/authRoutes.js';
 import debateRoutes from './src/routes/debateRoutes.js';
