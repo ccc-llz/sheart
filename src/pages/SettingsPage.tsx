@@ -15,7 +15,7 @@ const SettingsPage: React.FC = () => {
     { icon: Bell, label: '通知设置', description: '管理你的通知偏好' },
     { icon: Lock, label: '隐私设置', description: '控制谁可以看到你的内容' },
     { icon: HelpCircle, label: '帮助中心', description: '获取帮助和支持' },
-    { icon: Info, label: '关于我们', description: '了解应用信息' },
+    { icon: Info, label: '关于我们', description: '了解应用信息', route: '/about' },
   ];
 
   return (
@@ -110,6 +110,7 @@ const SettingsPage: React.FC = () => {
           return (
             <button
               key={index}
+              onClick={() => item.route && navigate(item.route)}
               className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors text-left"
             >
               <div className="flex items-center">
