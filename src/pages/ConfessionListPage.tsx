@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Heart, MessageCircle, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getConfessions, toggleLike, addComment } from '../services/confessionService';
 
 interface Confession {
   id: string;
@@ -26,61 +27,51 @@ const ConfessionListPage: React.FC = () => {
   const [showComments, setShowComments] = useState(false);
   const [currentConfession, setCurrentConfession] = useState<Confession | null>(null);
   const [commentText, setCommentText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const tags = ['全部', '职场', '家庭', '情感', '生活感悟', '兴趣爱好'];
 
   useEffect(() => {
-    const savedConfessions = JSON.parse(localStorage.getItem('sheart_confessions') || '[]');
-    
-    // Add some sample data if empty
-    if (savedConfessions.length === 0) {
-      const sampleConfessions = [
-        {
-          id: '1',
-          content: '今天在公司被领导当众批评了，真的很难受。明明我已经很努力了，但似乎还是不够好...',
-          tags: ['职场'],
-          timestamp: new Date().toISOString(),
-          likes: 12,
-          comments: [
-            { id: '1', content: '抱抱，我也经历过类似的事情，你已经很棒了！', timestamp: new Date().toISOString() }
-          ]
-        },
-        {
-          id: '2',
-          content: '和男朋友吵架了，他总是不理解我的感受。有时候真的觉得很累...',
-          tags: ['情感'],
-          timestamp: new Date().toISOString(),
-          likes: 8,
-          comments: []
-        },
-        {
-          id: '3',
-          content: '妈妈又催婚了，说我都这个年纪了还不找对象。压力好大...',
-          tags: ['家庭'],
-          timestamp: new Date().toISOString(),
-          likes: 15,
-          comments: []
-        }
-      ];
-      localStorage.setItem('sheart_confessions', JSON.stringify(sampleConfessions));
-      setConfessions(sampleConfessions);
-    } else {
+    loadConfessions();
+  }, [selectedTag]);
+
+  const loadConfessions = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getConfessions({
+        tag: selectedTag === '全部' ? undefined : selectedTag,
+        page: 1,
+        limit: 50,
+        sort: 'createdAt'
+      });
+      setConfessions(response.data.confessions);
+    } catch (error) {
+      console.error('加载吐槽列表失败:', error);
+      // 如果API失败，使用本地存储作为备用
+      const savedConfessions = JSON.parse(localStorage.getItem('sheart_confessions') || '[]');
       setConfessions(savedConfessions);
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  };
 
   const filteredConfessions = selectedTag === '全部' 
     ? confessions 
     : confessions.filter(confession => confession.tags.includes(selectedTag));
 
-  const handleLike = (confessionId: string) => {
-    const updatedConfessions = confessions.map(confession =>
-      confession.id === confessionId
-        ? { ...confession, likes: confession.likes + 1 }
-        : confession
-    );
-    setConfessions(updatedConfessions);
-    localStorage.setItem('sheart_confessions', JSON.stringify(updatedConfessions));
+  const handleLike = async (confessionId: string) => {
+    try {
+      const response = await toggleLike(confessionId);
+      const updatedConfessions = confessions.map(confession =>
+        confession.id === confessionId
+          ? { ...confession, likes: response.data.likes }
+          : confession
+      );
+      setConfessions(updatedConfessions);
+    } catch (error) {
+      console.error('点赞失败:', error);
+      alert('点赞失败，请重试');
+    }
   };
 
   const handleComment = (confession: Confession) => {
@@ -88,25 +79,31 @@ const ConfessionListPage: React.FC = () => {
     setShowComments(true);
   };
 
-  const submitComment = () => {
+  const submitComment = async () => {
     if (!commentText.trim() || !currentConfession) return;
 
-    const newComment: Comment = {
-      id: Date.now().toString(),
-      content: commentText.trim(),
-      timestamp: new Date().toISOString()
-    };
+    try {
+      const response = await addComment(currentConfession.id, commentText.trim());
+      
+      const newComment: Comment = {
+        id: response.data.id,
+        content: response.data.content,
+        timestamp: response.data.timestamp
+      };
 
-    const updatedConfessions = confessions.map(confession =>
-      confession.id === currentConfession.id
-        ? { ...confession, comments: [...confession.comments, newComment] }
-        : confession
-    );
+      const updatedConfessions = confessions.map(confession =>
+        confession.id === currentConfession.id
+          ? { ...confession, comments: [...confession.comments, newComment] }
+          : confession
+      );
 
-    setConfessions(updatedConfessions);
-    localStorage.setItem('sheart_confessions', JSON.stringify(updatedConfessions));
-    setCommentText('');
-    setShowComments(false);
+      setConfessions(updatedConfessions);
+      setCommentText('');
+      setShowComments(false);
+    } catch (error) {
+      console.error('添加评论失败:', error);
+      alert('添加评论失败，请重试');
+    }
   };
 
   const nextCard = () => {
@@ -167,7 +164,14 @@ const ConfessionListPage: React.FC = () => {
 
       {/* Card Area */}
       <div className="px-6 py-8">
-        {filteredConfessions.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <MessageCircle className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-gray-500 text-lg">加载中...</p>
+          </div>
+        ) : filteredConfessions.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
               <MessageCircle className="w-8 h-8 text-gray-400" />

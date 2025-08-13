@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit3 } from 'lucide-react';
+import { createConfession } from '../services/confessionService';
 
 const ConfessionPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTags, setSelectedTags] = useState<string[]>(['职场']);
   const [content, setContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const tags = ['职场', '家庭', '情感', '生活感悟', '兴趣爱好'];
 
@@ -17,24 +19,25 @@ const ConfessionPage: React.FC = () => {
     );
   };
 
-  const handleSubmit = () => {
-    if (!content.trim()) return;
+  const handleSubmit = async () => {
+    if (!content.trim() || isSubmitting) return;
     
-    // Save confession to local storage
-    const confessions = JSON.parse(localStorage.getItem('sheart_confessions') || '[]');
-    const newConfession = {
-      id: Date.now().toString(),
-      content: content.trim(),
-      tags: selectedTags,
-      timestamp: new Date().toISOString(),
-      likes: 0,
-      comments: []
-    };
+    setIsSubmitting(true);
     
-    confessions.unshift(newConfession);
-    localStorage.setItem('sheart_confessions', JSON.stringify(confessions));
-    
-    navigate('/confession-list');
+    try {
+      await createConfession({
+        content: content.trim(),
+        tags: selectedTags,
+        isAnonymous: true
+      });
+      
+      navigate('/confession-list');
+    } catch (error) {
+      console.error('发布吐槽失败:', error);
+      alert(error instanceof Error ? error.message : '发布失败，请重试');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -98,10 +101,10 @@ const ConfessionPage: React.FC = () => {
         {/* Submit Button */}
         <button
           onClick={handleSubmit}
-          disabled={!content.trim()}
+          disabled={!content.trim() || isSubmitting}
           className="w-full bg-black text-white py-4 px-8 rounded-xl text-lg font-medium hover:bg-gray-800 transition-all duration-200 active:scale-95 disabled:bg-gray-400 mb-4"
         >
-          发布吐槽
+          {isSubmitting ? '发布中...' : '发布吐槽'}
         </button>
 
         {/* Browse Button */}

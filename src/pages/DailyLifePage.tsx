@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Share, Camera, Video, Plus, UserPlus, Check } from 'lucide-react';
+import { Heart, MessageCircle, Camera, Video, Plus, UserPlus, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getDailyPosts, createDailyPost, toggleLike, addComment } from '../services/dailyPostService';
+
+interface Author {
+  id: string;
+  nickname: string;
+  avatar?: string;
+}
 
 interface DailyPost {
   id: string;
-  author: string;
-  avatar?: string;
+  author: Author | string; // 支持后端返回的对象格式和本地存储的字符串格式
   content: string;
   images?: string[];
   video?: string;
@@ -17,7 +23,7 @@ interface DailyPost {
 
 interface PostComment {
   id: string;
-  author: string;
+  author: Author | string; // 支持后端返回的对象格式和本地存储的字符串格式
   content: string;
   timestamp: string;
 }
@@ -31,76 +37,63 @@ const DailyLifePage: React.FC = () => {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [currentPostForComment, setCurrentPostForComment] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const savedPosts = JSON.parse(localStorage.getItem('sheart_daily_posts') || '[]');
-    
-    if (savedPosts.length === 0) {
-      const samplePosts = [
-        {
-          id: '1',
-          author: '小雨',
-          content: '今天尝试了新的化妆技巧，感觉整个人都精神了很多！分享给大家～',
-          images: ['https://images.pexels.com/photos/3373736/pexels-photo-3373736.jpeg?auto=compress&cs=tinysrgb&w=400'],
-          timestamp: new Date().toISOString(),
-          likes: 23,
-          comments: [
-            { id: '1', author: '小美', content: '好看！请问用的什么口红？', timestamp: new Date().toISOString() }
-          ],
-          isLiked: false
-        },
-        {
-          id: '2',
-          author: '阳光女孩',
-          content: '周末和闺蜜们一起做的手工，虽然不是很完美，但过程很开心！',
-          images: ['https://images.pexels.com/photos/1070945/pexels-photo-1070945.jpeg?auto=compress&cs=tinysrgb&w=400'],
-          timestamp: new Date().toISOString(),
-          likes: 18,
-          comments: [],
-          isLiked: false
-        }
-      ];
-      localStorage.setItem('sheart_daily_posts', JSON.stringify(samplePosts));
-      setPosts(samplePosts);
-    } else {
-      setPosts(savedPosts);
-    }
+    loadPosts();
   }, []);
 
-  const handleLike = (postId: string) => {
-    const updatedPosts = posts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-          isLiked: !post.isLiked
-        };
-      }
-      return post;
-    });
-    setPosts(updatedPosts);
-    localStorage.setItem('sheart_daily_posts', JSON.stringify(updatedPosts));
+  const loadPosts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getDailyPosts({
+        page: 1,
+        limit: 50
+      });
+      setPosts(response.data.posts);
+    } catch (error) {
+      console.error('加载日常分享失败:', error);
+      // 如果API失败，使用本地存储作为备用
+      const savedPosts = JSON.parse(localStorage.getItem('sheart_daily_posts') || '[]');
+      setPosts(savedPosts);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const createPost = () => {
+  const handleLike = async (postId: string) => {
+    try {
+      const response = await toggleLike(postId);
+      const updatedPosts = posts.map(post =>
+        post.id === postId
+          ? { ...post, likes: response.data.likes, isLiked: response.data.hasLiked }
+          : post
+      );
+      setPosts(updatedPosts);
+    } catch (error) {
+      console.error('点赞失败:', error);
+      alert('点赞失败，请重试');
+    }
+  };
+
+  const createPost = async () => {
     if (!newPost.content.trim()) return;
 
-    const post: DailyPost = {
-      id: Date.now().toString(),
-      author: '我',
-      content: newPost.content,
-      images: newPost.images,
-      timestamp: new Date().toISOString(),
-      likes: 0,
-      comments: [],
-      isLiked: false
-    };
+    try {
+      const response = await createDailyPost({
+        content: newPost.content,
+        images: newPost.images,
+        video: undefined
+      });
 
-    const updatedPosts = [post, ...posts];
-    setPosts(updatedPosts);
-    localStorage.setItem('sheart_daily_posts', JSON.stringify(updatedPosts));
-    setNewPost({ content: '', images: [] });
-    setShowCreateModal(false);
+      const newPostData = response.data;
+      setPosts([newPostData, ...posts]);
+      setNewPost({ content: '', images: [] });
+      setShowCreateModal(false);
+    } catch (error) {
+      console.error('创建日常分享失败:', error);
+      alert(error instanceof Error ? error.message : '创建失败，请重试');
+    }
   };
 
   const handleFollow = (author: string) => {
@@ -125,31 +118,31 @@ const DailyLifePage: React.FC = () => {
     setShowCommentModal(true);
   };
 
-  const submitComment = () => {
+  const submitComment = async () => {
     if (!newComment.trim() || !currentPostForComment) return;
 
-    const comment: PostComment = {
-      id: Date.now().toString(),
-      author: '我',
-      content: newComment,
-      timestamp: new Date().toISOString()
-    };
+    try {
+      const response = await addComment(currentPostForComment, newComment.trim());
+      
+      const newCommentData = response.data;
+      const updatedPosts = posts.map(post => {
+        if (post.id === currentPostForComment) {
+          return {
+            ...post,
+            comments: [...post.comments, newCommentData]
+          };
+        }
+        return post;
+      });
 
-    const updatedPosts = posts.map(post => {
-      if (post.id === currentPostForComment) {
-        return {
-          ...post,
-          comments: [...post.comments, comment]
-        };
-      }
-      return post;
-    });
-
-    setPosts(updatedPosts);
-    localStorage.setItem('sheart_daily_posts', JSON.stringify(updatedPosts));
-    setNewComment('');
-    setShowCommentModal(false);
-    setCurrentPostForComment(null);
+      setPosts(updatedPosts);
+      setNewComment('');
+      setShowCommentModal(false);
+      setCurrentPostForComment(null);
+    } catch (error) {
+      console.error('添加评论失败:', error);
+      alert('添加评论失败，请重试');
+    }
   };
 
   const handleImageUpload = () => {
@@ -172,6 +165,11 @@ const DailyLifePage: React.FC = () => {
     return `${Math.floor(diffInMinutes / 1440)}天前`;
   };
 
+  // 辅助函数：获取作者名称
+  const getAuthorName = (author: Author | string): string => {
+    return typeof author === 'string' ? author : author.nickname;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
@@ -188,115 +186,14 @@ const DailyLifePage: React.FC = () => {
 
       {/* Posts Feed */}
       <div className="px-6 py-6 space-y-6">
-        {posts.map((post) => (
-          <div key={post.id} className="bg-white rounded-2xl overflow-hidden">
-            {/* Post Header */}
-            <div className="p-4 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                  <span className="text-gray-600 font-medium">
-                    {post.author.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-black">{post.author}</h3>
-                  <p className="text-sm text-gray-500">{formatTimeAgo(post.timestamp)}</p>
-                </div>
-              </div>
-              
-              {post.author !== '我' && (
-                <button 
-                  onClick={() => handleFollow(post.author)}
-                  className={`flex items-center px-3 py-1 rounded-full text-sm transition-colors ${
-                    followedUsers.has(post.author) || isFollowing(`user_${post.author}`)
-                      ? 'bg-black text-white'
-                      : 'text-black border border-black hover:bg-black hover:text-white'
-                  }`}
-                >
-                  {followedUsers.has(post.author) || isFollowing(`user_${post.author}`) ? (
-                    <>
-                      <Check className="w-4 h-4 mr-1" />
-                      已关注
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-4 h-4 mr-1" />
-                      关注
-                    </>
-                  )}
-                </button>
-              )}
+        {isLoading ? (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <Camera className="w-8 h-8 text-gray-400" />
             </div>
-
-            {/* Post Content */}
-            <div className="px-4 pb-4">
-              <div className="flex items-center mb-2">
-                <span className="font-semibold text-black">{post.author}</span>
-                {isFriend(`user_${post.author}`) && (
-                  <span className="ml-2 bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                    朋友
-                  </span>
-                )}
-              </div>
-              <p className="text-gray-800 leading-relaxed mb-4">{post.content}</p>
-              
-              {/* Images */}
-              {post.images && post.images.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  {post.images.map((image, index) => (
-                    <img
-                      key={index}
-                      src={image}
-                      alt=""
-                      className="w-full h-24 object-cover rounded-lg"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Post Actions */}
-            <div className="border-t border-gray-100 px-4 py-3">
-              <div className="flex items-center justify-around">
-                <button
-                  onClick={() => handleLike(post.id)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all ${
-                    post.isLiked 
-                      ? 'text-red-500 bg-red-50' 
-                      : 'text-gray-600 hover:text-red-500 hover:bg-red-50'
-                  }`}
-                >
-                  <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
-                  <span>{post.likes}</span>
-                </button>
-                
-                <button 
-                  onClick={() => handleComment(post.id)}
-                  className="flex items-center space-x-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span>{post.comments.length}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Comments */}
-            {post.comments.length > 0 && (
-              <div className="border-t border-gray-100 px-4 py-3 space-y-2">
-                {post.comments.map((comment) => (
-                  <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-start space-x-2">
-                      <span className="font-semibold text-sm text-black">{comment.author}:</span>
-                      <span className="text-sm text-gray-700">{comment.content}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <p className="text-gray-500 text-lg">加载中...</p>
           </div>
-        ))}
-
-        {posts.length === 0 && (
+        ) : posts.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
               <Camera className="w-8 h-8 text-gray-400" />
@@ -304,6 +201,120 @@ const DailyLifePage: React.FC = () => {
             <p className="text-gray-500 text-lg">还没有日常分享</p>
             <p className="text-gray-400 text-sm mt-2">来分享第一条日常吧</p>
           </div>
+        ) : (
+          posts.map((post) => (
+            <div key={post.id} className="bg-white rounded-2xl overflow-hidden">
+              {/* Post Header */}
+              <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                    <span className="text-gray-600 font-medium">
+                      {getAuthorName(post.author).charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-black">
+                      {getAuthorName(post.author)}
+                    </h3>
+                    <p className="text-sm text-gray-500">{formatTimeAgo(post.timestamp)}</p>
+                  </div>
+                </div>
+                
+                {getAuthorName(post.author) !== '我' && (
+                  <button 
+                    onClick={() => handleFollow(getAuthorName(post.author))}
+                    className={`flex items-center px-3 py-1 rounded-full text-sm transition-colors ${
+                      followedUsers.has(getAuthorName(post.author)) || isFollowing(`user_${getAuthorName(post.author)}`)
+                        ? 'bg-black text-white'
+                        : 'text-black border border-black hover:bg-black hover:text-white'
+                    }`}
+                  >
+                    {followedUsers.has(getAuthorName(post.author)) || isFollowing(`user_${getAuthorName(post.author)}`) ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1" />
+                        已关注
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4 mr-1" />
+                        关注
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Post Content */}
+              <div className="px-4 pb-4">
+                <div className="flex items-center mb-2">
+                  <span className="font-semibold text-black">
+                    {getAuthorName(post.author)}
+                  </span>
+                  {isFriend(`user_${getAuthorName(post.author)}`) && (
+                    <span className="ml-2 bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
+                      朋友
+                    </span>
+                  )}
+                </div>
+                <p className="text-gray-800 leading-relaxed mb-4">{post.content}</p>
+                
+                {/* Images */}
+                {post.images && post.images.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {post.images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt=""
+                        className="w-full h-24 object-cover rounded-lg"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Post Actions */}
+              <div className="border-t border-gray-100 px-4 py-3">
+                <div className="flex items-center justify-around">
+                  <button
+                    onClick={() => handleLike(post.id)}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all ${
+                      post.isLiked 
+                        ? 'text-red-500 bg-red-50' 
+                        : 'text-gray-600 hover:text-red-500 hover:bg-red-50'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
+                    <span>{post.likes}</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => handleComment(post.id)}
+                    className="flex items-center space-x-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    <span>{post.comments.length}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Comments */}
+              {post.comments.length > 0 && (
+                <div className="border-t border-gray-100 px-4 py-3 space-y-2">
+                  {post.comments.map((comment) => (
+                    <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-start space-x-2">
+                        <span className="font-semibold text-sm text-black">
+                          {getAuthorName(comment.author)}:
+                        </span>
+                        <span className="text-sm text-gray-700">{comment.content}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
         )}
       </div>
 
