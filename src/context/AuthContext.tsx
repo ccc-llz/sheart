@@ -36,6 +36,9 @@ interface AuthContextType {
   unfollowUser: (userId: string) => Promise<void>;
   isFollowing: (userId: string) => boolean;
   isFriend: (userId: string) => boolean;
+  likedItems: any[];
+  toggleLike: (id: string) => void;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,6 +84,20 @@ async function authFetch(path: string, options: RequestInit = {}) {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // 新增点赞状态
+  const [likedItems, setLikedItems] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem('sheart_likes') || '[]'); }
+    catch { return []; }
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const toggleLike = (id: string) => {
+    setLikedItems(prev => {
+      const next = prev.map(it => it.id === id ? { ...it, isLiked: !it.isLiked } : it);
+      localStorage.setItem('sheart_likes', JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     const savedUser = localStorage.getItem('sheart_user');
@@ -213,6 +230,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             unfollowUser,
             isFollowing,
             isFriend,
+            likedItems,
+            toggleLike,
+            isLoading
           }}
       >
         {children}

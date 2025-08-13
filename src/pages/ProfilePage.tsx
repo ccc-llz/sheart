@@ -83,11 +83,12 @@ const ProfilePage: React.FC = () => {
 
   const menuItems = [
     { icon: Users, label: '我的好友', count: user?.friends || 0, onClick: () => navigate('/friends') },
-    { icon: Users, label: '关注', count: user?.following || 0, onClick: () => alert('关注页面功能（实际应用中会跳转到相应页面）') },
-    { icon: Users, label: '粉丝', count: user?.followers || 0, onClick: () => alert('粉丝页面功能（实际应用中会跳转到相应页面）') },
-    { icon: Heart, label: '我的点赞', onClick: () => alert('我的点赞页面功能（实际应用中会跳转到相应页面）') },
-    { icon: Settings, label: '设置', onClick: () => alert('设置页面功能（实际应用中会跳转到相应页面）') }
+    { icon: Users, label: '关注',      count: user?.following || 0, onClick: () => navigate('/following') },
+    { icon: Users, label: '粉丝',      count: user?.followers || 0, onClick: () => navigate('/fans') },
+    { icon: Heart, label: '我的点赞',  onClick: () => navigate('/likes') },
+    { icon: Settings, label: '设置',   onClick: () => navigate('/settings') },
   ];
+
 
   if (!user) return null;
 
