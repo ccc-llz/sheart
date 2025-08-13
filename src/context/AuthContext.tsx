@@ -1,3 +1,4 @@
+// src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface User {
@@ -21,16 +22,16 @@ interface RegisterData {
   nickname: string;
   phone: string;
   password: string;
-  verificationCode: string; // 若后端不需要可忽略
+  inviteCode: string;   // ← 改这里
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (phone: string, password?: string, verificationCode?: string) => Promise<boolean>;
+  login: (phone: string, password?: string) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => void;
-  updateUser: (userData: Partial<User>) => void; // 本地立即更新；若有后端 PATCH 会同步覆盖
+  updateUser: (userData: Partial<User>) => void;
   followUser: (userId: string, userNickname: string) => Promise<void>;
   unfollowUser: (userId: string) => Promise<void>;
   isFollowing: (userId: string) => boolean;
@@ -39,10 +40,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ====== 配置你的后端基础路径 ======
 const API_BASE = '/api';
 
-// ====== 工具函数 ======
 function toStringIds(arr: any[] | undefined): string[] {
   return (arr || []).map((x: any) => (typeof x === 'string' ? x : x?.toString?.() ?? String(x)));
 }
@@ -79,12 +78,10 @@ async function authFetch(path: string, options: RequestInit = {}) {
   return data;
 }
 
-// ====== Provider ======
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // 恢复本地会话
   useEffect(() => {
     const savedUser = localStorage.getItem('sheart_user');
     const token = localStorage.getItem('token');
@@ -115,7 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(false);
   };
 
-  // 本地身份证验证（与你原逻辑一致）
   const validateIdCard = (idCard: string): { isValid: boolean; isFemale: boolean } => {
     if (idCard.length !== 18) return { isValid: false, isFemale: false };
     const genderDigit = parseInt(idCard[16]);
@@ -124,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { isValid, isFemale };
   };
 
-  // 注册：调用后端接口（保持你原交互——注册成功跳转登录页，不直接登录）
+  // 注册：携带 inviteCode
   const register = async (userData: RegisterData): Promise<boolean> => {
     const { isValid, isFemale } = validateIdCard(userData.idCard);
     if (!isValid) throw new Error('身份证格式无效');
@@ -136,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       nickname: userData.nickname,
       phone: userData.phone,
       password: userData.password,
-      // verificationCode: userData.verificationCode, // 若后端需要，取消注释
+      inviteCode: userData.inviteCode,  // ← 传给后端
     };
 
     await authFetch('/auth/register', {
@@ -146,10 +142,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  // 登录：调用后端，保存 token + user
-  const login = async (phone: string, password?: string, _verificationCode?: string): Promise<boolean> => {
+  // 登录：仅密码
+  const login = async (phone: string, password?: string): Promise<boolean> => {
     const body: Record<string, any> = { phone };
-    if (password) body.password = password; // 当前用密码登录；验证码登录可扩展
+    if (password) body.password = password;
 
     const data = await authFetch('/auth/login', {
       method: 'POST',
@@ -161,35 +157,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  const logout = () => {
-    clearSession();
-  };
+  const logout = () => clearSession();
 
-  // 更新资料：先本地更新；如果后端开了 PATCH /api/users/me，这里会再覆盖为服务端返回
   const updateUser = (userData: Partial<User>) => {
     if (!user) return;
-    // 本地立即更新
     const updatedLocal = { ...user, ...userData };
     setUser(updatedLocal);
     localStorage.setItem('sheart_user', JSON.stringify(updatedLocal));
-
-    // 若有后端接口，发送并以服务端为准覆盖
-    authFetch('/users/me', {
-      method: 'PATCH',
-      body: JSON.stringify(userData),
-    })
+    authFetch('/users/me', { method: 'PATCH', body: JSON.stringify(userData) })
         .then((data) => {
           const merged = normalizeUser(data.user);
           setUser(merged);
           localStorage.setItem('sheart_user', JSON.stringify(merged));
         })
-        .catch((e) => {
-          console.error(e);
-          // 失败时你也可以选择回滚本地状态
-        });
+        .catch((e) => console.error(e));
   };
 
-  // 关注：对接后端 /api/relations/follow/:targetId
   const followUser = async (targetUserId: string, _userNickname: string) => {
     if (!user || targetUserId === user.id) return;
     try {
@@ -202,7 +185,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 取关：对接后端 /api/relations/follow/:targetId
   const unfollowUser = async (targetUserId: string) => {
     if (!user || targetUserId === user.id) return;
     try {
@@ -215,14 +197,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 使用本地 user 判定；需要更严格一致性可调用 /api/relations/status/:id 校准
-  const isFollowing = (targetId: string) => {
-    return !!user?.followingList?.includes(targetId);
-  };
-
-  const isFriend = (targetId: string) => {
-    return !!user?.friendsList?.includes(targetId);
-  };
+  const isFollowing = (targetId: string) => !!user?.followingList?.includes(targetId);
+  const isFriend = (targetId: string) => !!user?.friendsList?.includes(targetId);
 
   return (
       <AuthContext.Provider
@@ -244,7 +220,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-// Hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
