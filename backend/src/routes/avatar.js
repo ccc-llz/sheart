@@ -5,8 +5,8 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuid } from 'uuid';
-import { authMiddleware } from '../middleware/authMiddleware.js'; // 你现在的鉴权中间件
-import User from '../models/User.js'; // 如果你的模型不在这条路径，请把相对路径改一下
+import { authMiddleware } from '../middleware/authMiddleware.js';
+import User from '../models/User.js';
 
 const router = Router();
 
@@ -36,36 +36,46 @@ router.post('/me/avatar', authMiddleware, upload.single('avatar'), async (req, r
         const me = await User.findById(userId);
         if (!me) return res.status(404).json({ error: '用户不存在' });
 
-        // 生成输出路径
-        const baseUploads = path.join(process.cwd(), 'uploads', 'avatars', userId);
-        ensureDirSync(baseUploads);
+        // 输出路径：<项目>/uploads/avatars/<userId>/<uuid>.webp
+        const uploadsRoot = path.join(process.cwd(), 'uploads');
+        const userDir = path.join(uploadsRoot, 'avatars', req.userId);
+        ensureDirSync(userDir);
         const key = `${uuid()}.webp`;
-        const filePath = path.join(baseUploads, key);
+        const absPath = path.join(userDir, key);
 
         // 用 sharp 统一裁剪成 512x512 的正方形（cover 模式）
         await sharp(req.file.buffer)
             .resize(512, 512, { fit: 'cover', position: 'centre' })
             .webp({ quality: 90 })
-            .toFile(filePath);
+            .toFile(absPath);
 
-        // 生成可访问 URL（注意生产环境改成你的域名/CDN）
-        const publicUrl = `/uploads/avatars/${userId}/${key}`;
+        // 相对路径（供静态服务使用）
+        const publicPath = `/uploads/avatars/${req.userId}/${key}`;
 
-        // 如果有旧头像文件，可以尝试删除（可选）
-        if (me.avatar && me.avatar.startsWith('/uploads/')) {
+        // 绝对 URL（优先 .env 的 BASE_URL；否则回退当前请求的协议和 Host）
+        const base =
+            process.env.BASE_URL ||
+            `${req.protocol}://${req.get('host')}`;
+        const absoluteUrl = `${base}${publicPath}`;
+
+        if (me.avatar) {
             try {
-                const oldAbs = path.join(process.cwd(), me.avatar.replace('/uploads', 'uploads'));
-                if (fs.existsSync(oldAbs)) fs.unlinkSync(oldAbs);
-            } catch (e) {
-                // 静默失败即可
-            }
+                const oldPathname = me.avatar.startsWith('http')
+                    ? new NodeURL(me.avatar).pathname
+                    : me.avatar; // 可能是 /uploads/...
+                if (oldPathname.startsWith('/uploads/')) {
+                    const oldAbs = path.join(process.cwd(), oldPathname.replace('/uploads', 'uploads'));
+                    if (fs.existsSync(oldAbs)) fs.unlinkSync(oldAbs);
+                }
+            } catch {/* 忽略删除失败 */}
         }
 
-        // 更新数据库里的头像 URL
-        me.avatar = publicUrl;
+        // 更新 DB
+        me.avatar = absoluteUrl;    // 数据库存绝对 URL，前端不用再拼端口
         await me.save();
+        console.log('Avatar saved to:', absPath);
 
-        return res.status(201).json({ avatar: publicUrl });
+        return res.status(201).json({ avatar: absoluteUrl });
     } catch (err) {
         console.error(err);
         const msg = /File too large/i.test(err?.message) ? '图片过大（>5MB）' : (err?.message || '上传失败');
