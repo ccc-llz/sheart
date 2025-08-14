@@ -8,55 +8,46 @@ const SECRET_KEY = process.env.JWT_SECRET || 'yoursecret';
 
 /**
  * 注册：必须携带 inviteCode
- * 前端 body 应包含 { phone, password, nickname, realName, idCard, inviteCode }
+
  */
 export const register = async (req, res) => {
-    const { phone, password, nickname, realName, idCard, inviteCode } = req.body || {};
+    const { email, password, nickname, realName, idCard, inviteCode } = req.body || {};
     if (!inviteCode) return res.status(400).json({ error: '缺少邀请码' });
-    if (!phone || !password || !nickname) {
+    if (!email || !password || !nickname) {
         return res.status(400).json({ error: '缺少必填字段' });
     }
 
-    const session = await mongoose.startSession();
     try {
-        await session.withTransaction(async () => {
-            // 1) 原子校验并消耗邀请码（可绑定手机号）
-            const consumed = await InviteCode.consume(inviteCode, { phone, session });
-            if (!consumed) throw new Error('邀请码无效或已过期/已用完');
+        // 1) 消耗邀请码（并发安全的自增在模型里做了）
+        const consumed = await InviteCode.consume(inviteCode, { email }); // 见下方模型修复
+        if (!consumed) throw new Error('邀请码无效或已过期/已用完');
 
-            // 2) 防重复注册
-            const exists = await User.findOne({ phone }).session(session);
-            if (exists) throw new Error('手机号已注册');
+        // 2) 防重复
+        const exists = await User.findOne({ email });
+        if (exists) throw new Error('邮箱已注册');
 
-            // 3) 创建用户（如你的 User 模型有 pre-save hash，在此直接传明文 password 即可）
-            const [user] = await User.create([{
-                phone,
-                password,
-                nickname,
-                realName,
-                idCard,
-                role: consumed.role || 'user'
-            }], { session });
-
-            // 4) 回写使用者
-            await InviteCode.appendUsedBy(consumed._id, user._id, { session });
-
-            // 5) 返回 token + user（维持你原先行为）
-            const token = jwt.sign({ id: user._id }, SECRET_KEY, { expiresIn: '7d' });
-            res.status(201).json({ token, user });
+        // 3) 创建用户
+        const user = await User.create({
+            email, password, nickname, realName, idCard, role: consumed.role || 'user'
         });
+
+        // 4) 记录使用者（非关键失败可忽略）
+        await InviteCode.appendUsedBy(consumed._id, user._id);
+
+        // 5) 返回
+        const token = jwt.sign({ id: user._id }, SECRET_KEY, { expiresIn: '7d' });
+        res.status(201).json({ token, user });
     } catch (err) {
         console.error('register error:', err);
+        // ☆ 可选：如果你希望强一致性，这里可以用 codeDigest 找到该码，把 usedCount 减 1（注意防脏数据）
         return res.status(400).json({ error: err.message || '注册失败' });
-    } finally {
-        session.endSession();
     }
 };
 
 export const login = async (req, res) => {
-    const { phone, password } = req.body;
+    const { email, password } = req.body;
 
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ email });
     if (!user) {
         return res.status(400).json({ error: '用户不存在' });
     }

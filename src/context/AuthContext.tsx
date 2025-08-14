@@ -4,7 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 interface User {
   id: string;
   nickname: string;
-  phone: string;
+  phone?: string;
+  email?:string;
   avatar?: string;
   bio?: string;
   tags?: string[];
@@ -20,9 +21,9 @@ interface RegisterData {
   idCard: string;
   realName: string;
   nickname: string;
-  phone: string;
+  email: string;
   password: string;
-  inviteCode: string;   // ← 改这里
+  inviteCode: string;
 }
 
 interface AuthContextType {
@@ -57,6 +58,7 @@ function normalizeUser(u: any): User {
     avatar: u.avatar,
     bio: u.bio,
     tags: u.tags || [],
+    email: u.email,
     followers: typeof u.followers === 'number' ? u.followers : 0,
     following: typeof u.following === 'number' ? u.following : 0,
     friends: typeof u.friends === 'number' ? u.friends : 0,
@@ -147,9 +149,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       idCard: userData.idCard,
       realName: userData.realName,
       nickname: userData.nickname,
-      phone: userData.phone,
+      email: userData.email,
       password: userData.password,
-      inviteCode: userData.inviteCode,  // ← 传给后端
+      inviteCode: userData.inviteCode,
     };
 
     await authFetch('/auth/register', {

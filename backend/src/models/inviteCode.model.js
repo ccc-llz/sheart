@@ -145,7 +145,7 @@ inviteCodeSchema.statics.verifyUsable = async function (code, { phone } = {}) {
  * 成功返回“更新后的文档”；失败返回 null
  * 可与注册放在同一事务 session 中使用
  */
-inviteCodeSchema.statics.consume = async function (code, { phone, session } = {}) {
+inviteCodeSchema.statics.consume = async function (code, { email, session } = {}) {
     const now = new Date();
     const plain = String(code).trim().toLowerCase();
     const codeDigest = sha256Hex(plain);
@@ -158,12 +158,12 @@ inviteCodeSchema.statics.consume = async function (code, { phone, session } = {}
         $expr: { $lt: ['$usedCount', '$maxUses'] }
     };
 
-    if (phone) {
+    if (email) {
         baseQuery.$or = [
             ...(baseQuery.$or || []),
-            { bindPhone: { $exists: false } },
-            { bindPhone: null },
-            { bindPhone: phone }
+            { bindEmail: { $exists: false } },
+            { bindEmail: null },
+            { bindEmail: email }
         ];
     }
 

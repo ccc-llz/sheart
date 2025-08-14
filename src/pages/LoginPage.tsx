@@ -9,7 +9,7 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
 
   const [formData, setFormData] = useState({
-    phone: '',
+    email: '',
     password: ''
   });
 
@@ -22,10 +22,10 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await login(formData.phone, formData.password);
+      await login(formData.email, formData.password);
       navigate('/home');
     } catch (error: any) {
-      if (error.message === '用户不存在，请先注册' || error.message === '手机号未注册') {
+      if (error.message === '用户不存在，请先注册' || error.message === '邮箱未注册') {
         navigate('/register');
       } else {
         setError(error.message || '登录失败，请重试');
@@ -51,12 +51,11 @@ const LoginPage: React.FC = () => {
             {/* Phone */}
             <div>
               <input
-                  type="tel"
-                  placeholder="输入您的手机号码"
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  type="email"
+                  placeholder="输入您的邮箱"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors"
-                  maxLength={11}
                   required
               />
             </div>

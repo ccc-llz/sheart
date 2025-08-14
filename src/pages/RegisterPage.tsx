@@ -13,7 +13,7 @@ const RegisterPage: React.FC = () => {
     idCard: '',
     realName: '',
     nickname: '',
-    phone: '',
+    email: '',
     inviteCode: '',
     password: '',
     confirmPassword: ''
@@ -23,7 +23,7 @@ const RegisterPage: React.FC = () => {
     idCard: false,
     realName: false,
     nickname: false,
-    phone: false,
+    email: false,
     inviteCode: false,
     password: false,
     confirmPassword: false
@@ -32,6 +32,7 @@ const RegisterPage: React.FC = () => {
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   // 从 URL 自动填充 ?invite=XXXX
   useEffect(() => {
@@ -56,8 +57,8 @@ const RegisterPage: React.FC = () => {
       case 'nickname':
         isValid = value.length >= 1 && value.length <= 20;
         break;
-      case 'phone':
-        isValid = /^1[3-9]\d{9}$/.test(value);
+      case 'email':
+        isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
         break;
       case 'inviteCode':
         isValid = /^[A-Za-z0-9]{6,12}$/.test(value.trim());
@@ -82,6 +83,42 @@ const RegisterPage: React.FC = () => {
     }
   };
 
+  // 发送邀请码到邮箱（走你的 /api/admin/invites/generate）
+  const sendVerificationCode = async () => {
+    if (!validations.email) {
+      alert('请输入正确的邮箱地址');
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/invites/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 1, email: formData.email })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || '发送失败');
+
+      // 可选：开发调试用，正式环境可去掉 codes 提示
+      if (Array.isArray(data?.codes) && data.codes[0]) {
+        console.log('本次明文邀请码：', data.codes[0]);
+      }
+
+      setCountdown(60);
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      alert(`邀请码已发送至：${formData.email}`);
+    } catch (e: any) {
+      alert(e?.message || '发送邀请码失败，请重试');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors([]);
@@ -90,7 +127,7 @@ const RegisterPage: React.FC = () => {
     if (!validations.idCard) newErrors.push('请输入正确的18位身份证号码');
     if (!validations.realName) newErrors.push('请输入正确的真实姓名');
     if (!validations.nickname) newErrors.push('请输入昵称（1-20字）');
-    if (!validations.phone) newErrors.push('请输入正确的手机号码');
+    if (!validations.email) newErrors.push('请输入正确的邮箱地址');
     if (!validations.inviteCode) newErrors.push('请输入有效的邀请码（6-12位字母或数字）');
     if (!validations.password) newErrors.push('请输入8-12位密码');
     if (!validations.confirmPassword) newErrors.push('两次密码输入不一致');
@@ -102,15 +139,14 @@ const RegisterPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // 确保你的 AuthContext.register 会把 inviteCode 传给后端
       await register({
         idCard: formData.idCard,
         realName: formData.realName,
         nickname: formData.nickname,
-        phone: formData.phone,
+        email: formData.email,
         inviteCode: formData.inviteCode,
         password: formData.password
-      });
+      } as any); // 与 AuthContext 保持一致（下方给出对应改动）
       setShowSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
     } catch (error: any) {
@@ -162,7 +198,9 @@ const RegisterPage: React.FC = () => {
                     className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors pr-12"
                     maxLength={18}
                 />
-                {validations.idCard && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+                {validations.idCard && (
+                    <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                )}
               </div>
             </div>
 
@@ -176,7 +214,9 @@ const RegisterPage: React.FC = () => {
                     onChange={(e) => handleInputChange('realName', e.target.value)}
                     className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors pr-12"
                 />
-                {validations.realName && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+                {validations.realName && (
+                    <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                )}
               </div>
             </div>
 
@@ -191,23 +231,37 @@ const RegisterPage: React.FC = () => {
                     className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors pr-12"
                     maxLength={20}
                 />
-                {validations.nickname && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+                {validations.nickname && (
+                    <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                )}
               </div>
             </div>
 
-            {/* Phone */}
+            {/* Email + Send Invite */}
             <div>
-              <div className="relative">
-                <input
-                    type="tel"
-                    placeholder="输入您的手机号码"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors pr-12"
-                    maxLength={11}
-                />
-                {validations.phone && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <input
+                      type="email"
+                      placeholder="输入您的邮箱地址（用于接收邀请码）"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors pr-12"
+                  />
+                  {validations.email && (
+                      <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                  )}
+                </div>
+                <button
+                    type="button"
+                    onClick={sendVerificationCode}
+                    disabled={countdown > 0 || !validations.email}
+                    className="px-6 py-4 bg-black text-white rounded-xl disabled:bg-gray-400 hover:bg-gray-800 transition-colors whitespace-nowrap"
+                >
+                  {countdown > 0 ? `${countdown}s` : '发送邀请码'}
+                </button>
               </div>
+              <p className="text-xs text-gray-500 mt-2">我们会将邀请码发送到该邮箱</p>
             </div>
 
             {/* Invite Code */}
@@ -221,7 +275,9 @@ const RegisterPage: React.FC = () => {
                     className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors pr-12"
                     maxLength={12}
                 />
-                {validations.inviteCode && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+                {validations.inviteCode && (
+                    <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                )}
               </div>
             </div>
 
@@ -236,7 +292,9 @@ const RegisterPage: React.FC = () => {
                     className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors pr-12"
                     maxLength={12}
                 />
-                {validations.password && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+                {validations.password && (
+                    <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                )}
               </div>
             </div>
 
@@ -251,7 +309,9 @@ const RegisterPage: React.FC = () => {
                     className="w-full px-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-black transition-colors pr-12"
                     maxLength={12}
                 />
-                {validations.confirmPassword && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+                {validations.confirmPassword && (
+                    <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                )}
               </div>
             </div>
 

@@ -9,7 +9,7 @@ const UserSchema = new Schema(
         idCard: { type: String, required: true, unique: true }, // 身份证号码
         realName: { type: String, required: true }, // 真实姓名
         nickname: { type: String, required: true, unique: true }, // 昵称
-        phone: { type: String, required: true, unique: true }, // 手机号
+        email: { type: String, required: true, unique: true },
         password: { type: String, required: true }, // 密码
         bio: { type: String, default: '' }, // 简介
         tags: { type: [String], default: [] }, // 标签
