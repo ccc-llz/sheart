@@ -22,8 +22,10 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      const data = await login(formData.email, formData.password);
+      console.log('/auth/login response', data);
       navigate('/home');
+
     } catch (error: any) {
       if (error.message === '用户不存在，请先注册' || error.message === '邮箱未注册') {
         navigate('/register');

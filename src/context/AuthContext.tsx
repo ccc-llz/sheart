@@ -173,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!data?.token || !data?.user) throw new Error('登录返回数据不完整');
     setSession(data.token, data.user);
-    return true;
+    return data;
   };
 
   const logout = () => clearSession();
