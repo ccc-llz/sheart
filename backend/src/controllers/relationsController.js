@@ -1,9 +1,34 @@
 // controllers/relationsController.js
-import mongoose from 'mongoose';
+import mongoose from '../models/db.js';
 import User from '../models/User.js';
 
 const toObjectId = (id) => new mongoose.Types.ObjectId(id);
 
+// GET /api/relations/friends
+export const getMyFriends = async (req, res) => {
+    try {
+        // 需要你的鉴权中间件先把 userId 放到 req.userId
+        const me = await User.findById(req.userId)
+            .populate({
+                path: 'friendsList',
+                select: '_id nickname avatar bio',   // 仅返回用得到的字段
+            });
+
+        if (!me) return res.status(404).json({ error: '用户不存在' });
+
+        const friends = (me.friendsList || []).map(u => ({
+            id: u._id.toString(),
+            nickname: u.nickname || '',
+            avatar: u.avatar || '',
+            bio: u.bio || '',
+        }));
+
+        res.json({ friends });
+    } catch (err) {
+        console.error('getMyFriends error:', err);
+        res.status(500).json({ error: '获取好友列表失败' });
+    }
+};
 export const follow = async (req, res) => {
     try {
         const meId = req.userId;
@@ -77,6 +102,52 @@ export const follow = async (req, res) => {
     }
 };
 
+// GET /api/relations/following  我关注的人
+export const getMyFollowing = async (req, res) => {
+    try {
+        const me = await User.findById(req.userId)
+            .populate({ path: 'followingList', select: '_id nickname avatar bio' });
+
+        if (!me) return res.status(404).json({ error: '用户不存在' });
+
+        const following = (me.followingList || []).map(u => ({
+            id: u._id.toString(),
+            nickname: u.nickname || '',
+            avatar: u.avatar || '',
+            bio: u.bio || '',
+        }));
+
+        res.json({ following });
+    } catch (err) {
+        console.error('getMyFollowing error:', err);
+        res.status(500).json({ error: '获取关注列表失败' });
+    }
+};
+
+// GET /api/relations/fans  我的粉丝
+export const getMyFans = async (req, res) => {
+    try {
+        const me = await User.findById(req.userId)
+            .populate({ path: 'followersList', select: '_id nickname avatar bio followingList' });
+
+        if (!me) return res.status(404).json({ error: '用户不存在' });
+
+        const myId = new mongoose.Types.ObjectId(req.userId);
+        const fans = (me.followersList || []).map(u => ({
+            id: u._id.toString(),
+            nickname: u.nickname || '',
+            avatar: u.avatar || '',
+            bio: u.bio || '',
+            // 是否已回关
+            isFollowing: Array.isArray(u.followingList) && u.followingList.some(id => id.equals(myId)),
+        }));
+
+        res.json({ fans });
+    } catch (err) {
+        console.error('getMyFans error:', err);
+        res.status(500).json({ error: '获取粉丝列表失败' });
+    }
+};
 export const unfollow = async (req, res) => {
     try {
         const meId = req.userId;

@@ -12,6 +12,7 @@ import relationRoutes from './src/routes/relations.js';
 import adminInvitesRouter from './src/routes/admin.invites.js';
 import confessionRoutes from './src/routes/confessionRoutes.js';
 import dailyPostRoutes from './src/routes/dailyPostRoutes.js';
+import likeRoutes from './src/routes/likes.js';
 
 
 
@@ -37,6 +38,7 @@ app.use('/api/users', avatarRoutes);
 app.use('/api', adminInvitesRouter);
 app.use('/api/confessions', confessionRoutes);
 app.use('/api/daily-posts', dailyPostRoutes);
+app.use('/api/likes', likeRoutes);
 
 app.get('/api', (req, res) => {
     res.json({ message: 'Sheart Backend API' });
