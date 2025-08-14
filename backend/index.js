@@ -1,7 +1,8 @@
+import 'dotenv/config';
+console.log('[SMTP]', !!process.env.SMTP_USER, !!process.env.SMTP_PASS);
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
 import path from 'path';
 import avatarRoutes from './src/routes/avatar.js';
 import authRoutes from './src/routes/authRoutes.js';
@@ -13,7 +14,9 @@ import adminInvitesRouter from './src/routes/admin.invites.js';
 import confessionRoutes from './src/routes/confessionRoutes.js';
 import dailyPostRoutes from './src/routes/dailyPostRoutes.js';
 
-dotenv.config();
+
+
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
