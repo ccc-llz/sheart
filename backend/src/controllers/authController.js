@@ -1,7 +1,6 @@
 // controllers/authController.js
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
-import User from '../models/User.js';              // 注意保留 .js 扩展名
+import User from '../models/User.js';
 import InviteCode from '../models/inviteCode.model.js';
 
 const SECRET_KEY = process.env.JWT_SECRET || 'yoursecret';
@@ -30,6 +29,7 @@ export const register = async (req, res) => {
         const user = await User.create({
             email, password, nickname, realName, idCard, role: consumed.role || 'user'
         });
+
 
         // 4) 记录使用者（非关键失败可忽略）
         await InviteCode.appendUsedBy(consumed._id, user._id);

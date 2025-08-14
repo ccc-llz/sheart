@@ -29,7 +29,7 @@ interface RegisterData {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (phone: string, password?: string) => Promise<boolean>;
+  login: (email: string, password?: string) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
@@ -162,8 +162,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // 登录：仅密码
-  const login = async (phone: string, password?: string): Promise<boolean> => {
-    const body: Record<string, any> = { phone };
+  const login = async (email: string, password?: string): Promise<boolean> => {
+    const body: Record<string, any> = { email };
     if (password) body.password = password;
 
     const data = await authFetch('/auth/login', {
