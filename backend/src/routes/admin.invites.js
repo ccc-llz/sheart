@@ -104,7 +104,7 @@ const transporter = nodemailer.createTransport({
  * body: { count=1, email: 'xxx@example.com', maxUses=1, expiresAt?, role='user', note? }
  */
 router.post('/admin/invites/generate', requireAdmin, async (req, res) => {
-    const { count = 1, email, maxUses = 1, expiresAt, role = 'user', note } = req.body || {};
+    const { count = 1, email, emails, maxUses = 1, expiresAt, role = 'user', note } = req.body || {};
     try {
         const codes = [];
         const docs = [];
@@ -120,18 +120,34 @@ router.post('/admin/invites/generate', requireAdmin, async (req, res) => {
         }
         await InviteCode.insertMany(docs, { ordered: false });
 
-        // 如果有 email 就发邮件
-        if (email) {
-            await transporter.sendMail({
-                from: `"sheart" <${process.env.SMTP_USER}>`,
-                to: email,
-                subject: "您的测试邀请码",
-                html: `<p>您好，以下是您的邀请码：</p>
-               <h2>${codes.join(', ')}</h2>
-               <p>请在注册时填写此邀请码完成注册。</p>`
-            });
-        }
+        //多个收件人
+        const recipients = Array.isArray(emails) ? emails : (email ? [email] : []);
 
+
+        // if (email) {
+        //     await transporter.sendMail({
+        //         from: `"sheart" <${process.env.SMTP_USER}>`,
+        //         to: email,
+        //         subject: "您的测试邀请码",
+        //         html: `<p>您好，以下是您的邀请码：</p>
+        //        <h2>${codes.join(', ')}</h2>
+        //        <p>请在注册时填写此邀请码完成注册。</p>`
+        //     });
+        // }
+        if (recipients.length) {
+            // 如果想一人一个码：
+            for (let i = 0; i < recipients.length; i++) {
+                const code = codes[i % codes.length]; // 若收件人>邀请码，会循环使用
+                await transporter.sendMail({
+                    from: `"sheart" <${process.env.SMTP_USER}>`,
+                    to: recipients[i],
+                    subject: "您的测试邀请码",
+                    html: `<p>您好，以下是您的邀请码：</p>
+                 <h2>${code}</h2>
+                 <p>请在注册时填写此邀请码完成注册。</p>`
+                });
+            }
+        }
         res.json({ codes });
     } catch (err) {
         console.error('generate invites error:', err);
