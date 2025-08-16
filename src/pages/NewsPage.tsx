@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, ChevronDown, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { listMyLikes, likeOnce, unlikeByTarget } from '../api/likes';
+
 
 interface NewsArticle {
   id: string;
