@@ -1,6 +1,6 @@
 // ESM + Mongoose 邀请码模型（仅存哈希，不存明文）
 // models/inviteCode.model.js
-import mongoose from 'mongoose';
+import mongoose from './db.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 

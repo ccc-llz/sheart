@@ -1,5 +1,5 @@
 // models/Like.js
-import mongoose from 'mongoose';
+import mongoose from './db.js';
 const { Schema } = mongoose;
 
 const LikeSchema = new Schema({

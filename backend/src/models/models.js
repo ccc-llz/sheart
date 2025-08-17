@@ -1,5 +1,5 @@
 // models/models.js (ESM)
-import mongoose from 'mongoose';
+import mongoose from './db.js';
 
 // News
 const newsSchema = new mongoose.Schema(

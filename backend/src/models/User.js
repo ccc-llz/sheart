@@ -1,5 +1,5 @@
 // models/User.js (ESM)
-import mongoose from 'mongoose';
+import mongoose from './db.js';
 import bcrypt from 'bcryptjs';
 
 const { Schema } = mongoose;
