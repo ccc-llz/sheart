@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Camera, Video, Plus, UserPlus, Check } from 'lucide-react';
+import { Heart, MessageCircle, Camera, Video, Plus, UserPlus, Check, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getDailyPosts, createDailyPost, toggleLike, addComment } from '../services/dailyPostService';
+import { uploadService } from '../services/uploadService';
 
 interface Author {
   id: string;
@@ -32,7 +33,14 @@ const DailyLifePage: React.FC = () => {
   const { followUser, unfollowUser, isFollowing, isFriend } = useAuth();
   const [posts, setPosts] = useState<DailyPost[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newPost, setNewPost] = useState({ content: '', images: [] as string[] });
+  const [newPost, setNewPost] = useState({ 
+    content: '', 
+    images: [] as string[], 
+    video: '' as string 
+  });
+  const [uploadedImages, setUploadedImages] = useState<Array<{ url: string; path: string }>>([]);
+  const [uploadedVideo, setUploadedVideo] = useState<{ url: string; path: string } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [currentPostForComment, setCurrentPostForComment] = useState<string | null>(null);
@@ -82,13 +90,15 @@ const DailyLifePage: React.FC = () => {
     try {
       const response = await createDailyPost({
         content: newPost.content,
-        images: newPost.images,
-        video: undefined
+        images: uploadedImages.map(img => img.url),
+        video: uploadedVideo?.url
       });
 
       const newPostData = response.data;
       setPosts([newPostData, ...posts]);
-      setNewPost({ content: '', images: [] });
+      setNewPost({ content: '', images: [], video: '' });
+      setUploadedImages([]);
+      setUploadedVideo(null);
       setShowCreateModal(false);
     } catch (error) {
       console.error('创建日常分享失败:', error);
@@ -145,14 +155,72 @@ const DailyLifePage: React.FC = () => {
     }
   };
 
-  const handleImageUpload = () => {
-    // In a real app, this would open file picker
-    alert('图片上传功能（实际应用中会打开文件选择器，支持最多9张图片）');
+  const handleImageUpload = async () => {
+    try {
+      const files = await uploadService.createFileInput('image/*', true);
+      
+      // 验证文件
+      for (const file of files) {
+        const validation = uploadService.validateImage(file);
+        if (!validation.valid) {
+          alert(validation.error);
+          return;
+        }
+      }
+
+      // 检查图片数量限制
+      if (uploadedImages.length + files.length > 9) {
+        alert('图片数量不能超过9张');
+        return;
+      }
+
+      setIsUploading(true);
+      const response = await uploadService.uploadImages(files);
+      setUploadedImages(prev => [...prev, ...response.images]);
+    } catch (error) {
+      if (error instanceof Error && error.message !== '用户取消了文件选择') {
+        alert('图片上传失败：' + error.message);
+      }
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleVideoUpload = () => {
-    // In a real app, this would open file picker for videos
-    alert('视频上传功能（实际应用中会打开文件选择器，支持最多60秒视频）');
+  const handleVideoUpload = async () => {
+    try {
+      const files = await uploadService.createFileInput('video/*', false);
+      const file = files[0];
+
+      // 验证文件
+      const validation = uploadService.validateVideo(file);
+      if (!validation.valid) {
+        alert(validation.error);
+        return;
+      }
+
+      // 如果已有视频，先删除
+      if (uploadedVideo) {
+        setUploadedVideo(null);
+      }
+
+      setIsUploading(true);
+      const response = await uploadService.uploadVideo(file);
+      setUploadedVideo({ url: response.url, path: response.path });
+    } catch (error) {
+      if (error instanceof Error && error.message !== '用户取消了文件选择') {
+        alert('视频上传失败：' + error.message);
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeVideo = () => {
+    setUploadedVideo(null);
   };
 
   const formatTimeAgo = (timestamp: string) => {
@@ -271,6 +339,17 @@ const DailyLifePage: React.FC = () => {
                     ))}
                   </div>
                 )}
+
+                {/* Video */}
+                {post.video && (
+                  <div className="mb-4">
+                    <video
+                      src={post.video}
+                      controls
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Post Actions */}
@@ -342,23 +421,73 @@ const DailyLifePage: React.FC = () => {
             />
 
             {/* Media Upload */}
-            <div className="flex space-x-4 mb-6">
+            <div className="flex space-x-4 mb-4">
               <button
                 onClick={handleImageUpload}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                disabled={isUploading}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
                 <Camera className="w-5 h-5 text-gray-600" />
-                <span className="text-gray-700">添加图片</span>
+                <span className="text-gray-700">
+                  {isUploading ? '上传中...' : '添加图片'}
+                </span>
               </button>
               
               <button
                 onClick={handleVideoUpload}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                disabled={isUploading}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
                 <Video className="w-5 h-5 text-gray-600" />
-                <span className="text-gray-700">添加视频</span>
+                <span className="text-gray-700">
+                  {isUploading ? '上传中...' : '添加视频'}
+                </span>
               </button>
             </div>
+
+            {/* Uploaded Images Preview */}
+            {uploadedImages.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">已上传的图片 ({uploadedImages.length}/9)</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  {uploadedImages.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={image.url}
+                        alt=""
+                        className="w-full h-24 object-cover rounded-lg"
+                      />
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Uploaded Video Preview */}
+            {uploadedVideo && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">已上传的视频</h4>
+                <div className="relative">
+                  <video
+                    src={uploadedVideo.url}
+                    controls
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={removeVideo}
+                    className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Submit */}
             <div className="flex justify-between items-center">

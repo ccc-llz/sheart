@@ -45,7 +45,7 @@ export const getDailyPosts = async (req, res) => {
                         },
                         timestamp: comment.createdAt
                     })),
-                    isLiked: req.user ? post.likedBy.includes(req.user.id) : false
+                    isLiked: req.userId ? post.likedBy.includes(req.userId) : false
                 })),
                 total,
                 page: parseInt(page),
@@ -65,7 +65,7 @@ export const getDailyPosts = async (req, res) => {
 export const createDailyPost = async (req, res) => {
     try {
         const { content, images = [], video } = req.body;
-        const userId = req.user.id;
+        const userId = req.userId;
         
         if (!content || content.trim().length === 0) {
             return res.status(400).json({
@@ -133,7 +133,7 @@ export const createDailyPost = async (req, res) => {
 export const toggleLike = async (req, res) => {
     try {
         const { postId } = req.params;
-        const userId = req.user.id;
+        const userId = req.userId;
         
         const post = await DailyPost.findById(postId);
         if (!post) {
@@ -178,7 +178,7 @@ export const addComment = async (req, res) => {
     try {
         const { postId } = req.params;
         const { content } = req.body;
-        const userId = req.user.id;
+        const userId = req.userId;
         
         if (!content || content.trim().length === 0) {
             return res.status(400).json({
@@ -278,7 +278,7 @@ export const getDailyPostById = async (req, res) => {
                     },
                     timestamp: comment.createdAt
                 })),
-                isLiked: req.user ? post.likedBy.includes(req.user.id) : false
+                isLiked: req.userId ? post.likedBy.includes(req.userId) : false
             }
         });
     } catch (error) {
@@ -294,7 +294,7 @@ export const getDailyPostById = async (req, res) => {
 export const deleteDailyPost = async (req, res) => {
     try {
         const { postId } = req.params;
-        const userId = req.user.id;
+        const userId = req.userId;
         
         const post = await DailyPost.findById(postId);
         if (!post) {
@@ -374,7 +374,7 @@ export const getUserDailyPosts = async (req, res) => {
                         },
                         timestamp: comment.createdAt
                     })),
-                    isLiked: req.user ? post.likedBy.includes(req.user.id) : false
+                    isLiked: req.userId ? post.likedBy.includes(req.userId) : false
                 })),
                 total,
                 page: parseInt(page),

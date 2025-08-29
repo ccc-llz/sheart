@@ -73,7 +73,7 @@ export const getConfessions = async (req, res) => {
 export const createConfession = async (req, res) => {
     try {
         const { content, tags = [], isAnonymous = true } = req.body;
-        const userId = req.user.id; // 从JWT中获取用户ID
+        const userId = req.userId; // 从JWT中获取用户ID
         
         if (!content || content.trim().length === 0) {
             return res.status(400).json({
@@ -122,7 +122,7 @@ export const createConfession = async (req, res) => {
 export const toggleLike = async (req, res) => {
     try {
         const { confessionId } = req.params;
-        const userId = req.user.id;
+        const userId = req.userId;
         
         const confession = await Confession.findById(confessionId);
         if (!confession) {
@@ -167,7 +167,7 @@ export const addComment = async (req, res) => {
     try {
         const { confessionId } = req.params;
         const { content } = req.body;
-        const userId = req.user.id;
+        const userId = req.userId;
         
         if (!content || content.trim().length === 0) {
             return res.status(400).json({
@@ -272,7 +272,7 @@ export const getConfessionById = async (req, res) => {
 export const deleteConfession = async (req, res) => {
     try {
         const { confessionId } = req.params;
-        const userId = req.user.id;
+        const userId = req.userId;
         
         const confession = await Confession.findById(confessionId);
         if (!confession) {
