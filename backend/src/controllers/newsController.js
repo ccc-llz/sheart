@@ -1,42 +1,74 @@
-// controllers/newsController.js  (ESM)
-import { News } from '../models/models.js';
+const NewsItem = require('../models/NewsItem');
+const User = require('../models/User');
 
-// 获取所有新闻
-export const getAllNews = async (req, res) => {
-    try {
-        const newsList = await News.find().sort({ createdAt: -1 });
-        res.json(newsList);
-    } catch (err) {
-        res.status(500).json({ error: '获取新闻失败' });
-    }
+// 获取新闻列表
+exports.getNews = async (req, res) => {
+  try {
+    const { category, sort } = req.query;
+    const filter = category ? { category } : {};
+    const news = await NewsItem.find(filter)
+      .sort(sort === 'hot' ? { likes: -1, comments: -1 } : { createdAt: -1 })
+      .populate('comments.userId', 'username');
+    res.json(news);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '获取新闻失败' });
+  }
 };
 
-// 获取单条新闻详情
-export const getNewsById = async (req, res) => {
-    try {
-        const news = await News.findById(req.params.id);
-        if (!news) return res.status(404).json({ error: '新闻不存在' });
-        res.json(news);
-    } catch (err) {
-        res.status(500).json({ error: '获取新闻详情失败' });
-    }
+// 点赞 / 取消点赞
+exports.toggleLike = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const { id } = req.params;
+    const news = await NewsItem.findById(id);
+    if (!news) return res.status(404).json({ error: '新闻不存在' });
+
+    const index = news.likes.indexOf(userId);
+    if (index > -1) news.likes.splice(index, 1);
+    else news.likes.push(userId);
+
+    await news.save();
+    res.json(news);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '操作失败' });
+  }
 };
 
-// 创建新闻（后台使用）
-export const createNews = async (req, res) => {
-    try {
-        const { title, content, imageUrl, tags } = req.body;
-        const news = new News({ title, content, imageUrl, tags });
-        await news.save();
-        res.status(201).json(news);
-    } catch (err) {
-        res.status(500).json({ error: '创建新闻失败' });
-    }
+// 收藏 / 取消收藏
+exports.toggleFavorite = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const { id } = req.params;
+    const news = await NewsItem.findById(id);
+    if (!news) return res.status(404).json({ error: '新闻不存在' });
+
+    const index = news.favorites.indexOf(userId);
+    if (index > -1) news.favorites.splice(index, 1);
+    else news.favorites.push(userId);
+
+    await news.save();
+    res.json(news);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '操作失败' });
+  }
 };
 
-// 兼容默认导入（可选，但很省心）
-export default {
-    getAllNews,
-    getNewsById,
-    createNews,
+// 添加评论
+exports.addComment = async (req, res) => {
+  try {
+    const { userId, content } = req.body;
+    const { id } = req.params;
+    const news = await NewsItem.findById(id);
+    if (!news) return res.status(404).json({ error: '新闻不存在' });
+
+    news.comments.push({ userId, content });
+    await news.save();
+    res.json(news);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '评论失败' });
+  }
 };

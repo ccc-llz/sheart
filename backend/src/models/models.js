@@ -2,15 +2,27 @@
 import mongoose from './db.js';
 
 // News
-const newsSchema = new mongoose.Schema(
-    {
-        title: { type: String, required: true },
-        content: String,
-        imageUrl: String,
-        tags: { type: [String], default: [] }
-    },
-    { timestamps: true } // 自动生成 createdAt/updatedAt
-);
+const mongoose = require('mongoose');
+
+const commentSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  content: String,
+  date: { type: Date, default: Date.now },
+});
+
+const newsItemSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  content: String,
+  url: String,
+  image: String,
+  category: String,
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  comments: [commentSchema],
+  createdAt: { type: Date, default: Date.now },
+});
+
+module.exports = mongoose.model('NewsItem', newsItemSchema);
 
 // Debate
 const debateSchema = new mongoose.Schema(
